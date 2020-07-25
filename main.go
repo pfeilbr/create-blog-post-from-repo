@@ -1,20 +1,30 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
+	"text/template"
 
 	"github.com/google/go-github/github"
 	_ "github.com/joho/godotenv/autoload"
 	"golang.org/x/oauth2"
 )
+
+type RepoMetadata struct {
+	Repo         *github.Repository
+	Title        string
+	MarkdownBody string
+}
 
 func getGithubClient() *github.Client {
 	ctx := context.Background()
@@ -79,6 +89,70 @@ func titleForRepo(repoName string) string {
 	title = strings.ToLower(title)
 	title = strings.Title(title)
 	return title
+}
+
+func getURLContents(url string) (string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", fmt.Errorf("GET error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("Status error: %v", resp.StatusCode)
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("Read body: %v", err)
+	}
+
+	return string(data), nil
+}
+
+func getMarkdownBodyForRepo(repo *github.Repository) (string, error) {
+	url := "https://raw.githubusercontent.com/" + *repo.FullName + "/master/README.md"
+	contents, err := getURLContents(url)
+	if err != nil {
+		fmt.Printf("getURLContents(%s) failed", url)
+		return "", err
+	}
+	return contents, nil
+}
+
+func newRepoMetadata(repo *github.Repository) (RepoMetadata, error) {
+	markdownBody, err := getMarkdownBodyForRepo(repo)
+	if err != nil {
+		fmt.Printf("failed to getMarkdownBodyForRepo(%s)", *repo.Name)
+	}
+	m := RepoMetadata{
+		Repo:         repo,
+		Title:        titleForRepo(*repo.Name),
+		MarkdownBody: markdownBody,
+	}
+	return m, nil
+}
+
+func createPostString(repo *github.Repository) (string, error) {
+	repoMetaData, err := newRepoMetadata(repo)
+
+	postTemplatePath := filepath.Join("templates", "post.md")
+	fmt.Printf("postTemplatePath: %s", postTemplatePath)
+
+	b, err := ioutil.ReadFile(postTemplatePath)
+	contentsAsString := string(b)
+
+	t := template.Must(template.New("hugo-markdown-post-tmpl").Parse(contentsAsString))
+
+	var buf bytes.Buffer
+
+	err = t.Execute(&buf, repoMetaData)
+	if err != nil {
+		panic(err)
+	}
+
+	result := buf.String()
+	return result, nil
 }
 
 func fetchRepoMetadataListForUser(username string, path string) error {

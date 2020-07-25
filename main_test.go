@@ -141,3 +141,19 @@ func TestAllRepos(t *testing.T) {
 	}
 
 }
+
+func TestCreatePostString(t *testing.T) {
+	username := githubUsername
+	repos, _ := mockGetReposForUser(username)
+	filteredRepos, err := applyIncludeFilterForRepos(repos)
+	if err != nil {
+		t.Error(err)
+	}
+
+	repo := filteredRepos[0]
+	postString, err := createPostString(repo)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(postString)
+}
