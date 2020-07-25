@@ -122,6 +122,7 @@ func getMarkdownBodyForRepo(repo *github.Repository) (string, error) {
 
 func newRepoMetadata(repo *github.Repository) (RepoMetadata, error) {
 	markdownBody, err := getMarkdownBodyForRepo(repo)
+	markdownBody = ""
 	if err != nil {
 		fmt.Printf("failed to getMarkdownBodyForRepo(%s)", *repo.Name)
 	}

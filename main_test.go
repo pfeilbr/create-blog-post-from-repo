@@ -110,9 +110,9 @@ func TestApplyIncludeFilterForRepos(t *testing.T) {
 	}
 
 	t.Logf("filteredReposCount: %d", filteredReposCount)
-	t.Logf("filteredRepos:\n%v", Map(filteredRepos, func(repo *github.Repository) string {
-		return *repo.Name
-	}))
+	// t.Logf("filteredRepos:\n%v", Map(filteredRepos, func(repo *github.Repository) string {
+	// 	return *repo.Name
+	// }))
 }
 
 func TestAllRepos(t *testing.T) {
