@@ -2,18 +2,19 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"flag"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/google/go-github/github"
 	_ "github.com/joho/godotenv/autoload"
 	"golang.org/x/oauth2"
 )
-
-func Hello() string {
-	return "Hello, world."
-}
 
 func getGithubClient() *github.Client {
 	ctx := context.Background()
@@ -50,6 +51,27 @@ func getReposForUser(user string) ([]*github.Repository, error) {
 	return allRepos, nil
 }
 
+func applyIncludeFilterForRepos(repos []*github.Repository) ([]*github.Repository, error) {
+	var result []*github.Repository
+	for _, repo := range repos {
+		var match bool = false
+		repoNameIncludeFiltersString := os.Getenv("REPO_NAME_INCLUDE_FILTERS")
+		repoNameIncludeFilters := strings.Split(repoNameIncludeFiltersString, ",")
+
+		for _, includeFilter := range repoNameIncludeFilters {
+			re := regexp.MustCompile(includeFilter)
+			if re.Match([]byte(*repo.Name)) == true {
+				match = true
+			}
+		}
+
+		if match == true {
+			result = append(result, repo)
+		}
+	}
+	return result, nil
+}
+
 func titleForRepo(repoName string) string {
 	title := strings.ReplaceAll(repoName, "playground", "")
 	title = strings.ReplaceAll(title, "-", " ")
@@ -59,6 +81,34 @@ func titleForRepo(repoName string) string {
 	return title
 }
 
+func fetchRepoMetadataListForUser(username string, path string) error {
+	result, err := getReposForUser(username)
+	if err != nil {
+		fmt.Printf("getReposForUser(%s) failed\n", username)
+		return err
+	}
+	bytes, _ := json.Marshal(result)
+	ioutil.WriteFile(path, bytes, 0644)
+	return nil
+}
+
+var command string
+var user string
+var path string
+
+func init() {
+	flag.StringVar(&command, "command", "fetch-repo-metadata-list-for-user", "command to run")
+	flag.StringVar(&user, "user", "pfeilbr", "github username")
+	flag.StringVar(&path, "output", "repo-list.json", "file output path")
+}
+
 func main() {
-	fmt.Printf("%s", Hello())
+	flag.Parse()
+
+	if command == "fetch-repo-metadata-list-for-user" {
+		fmt.Printf("command: %s, user: %s, path: %s\n", command, user, path)
+		if err := fetchRepoMetadataListForUser(user, path); err != nil {
+			log.Fatal(err)
+		}
+	}
 }

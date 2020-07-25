@@ -18,13 +18,25 @@ type Expect struct {
 	Title string `json: "title"`
 }
 
-func getTestdataDirectoryName() string {
-	return os.Getenv("TEST_DATA_DIRECTORY_NAME")
+var testdataDirectoryName string
+var githubUsername string
+
+func init() {
+	testdataDirectoryName = os.Getenv("TEST_DATA_DIRECTORY_NAME")
+	githubUsername = os.Getenv("GITHUB_USERNAME")
+}
+
+func Map(vs []*github.Repository, f func(*github.Repository) string) []string {
+	vsm := make([]string, len(vs))
+	for i, v := range vs {
+		vsm[i] = f(v)
+	}
+	return vsm
 }
 
 func getTestRepoNames(username string) []string {
 	names := make([]string, 0)
-	files, err := ioutil.ReadDir(filepath.Join(getTestdataDirectoryName(), "repos", username))
+	files, err := ioutil.ReadDir(filepath.Join(testdataDirectoryName, "repos", username))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -42,7 +54,7 @@ func getTestRepoNames(username string) []string {
 }
 
 func getExpectedResultsForRepo(username string, name string) Expect {
-	path := filepath.Join(getTestdataDirectoryName(), "repos", username, name, "expect.json")
+	path := filepath.Join(testdataDirectoryName, "repos", username, name, "expect.json")
 	file, _ := ioutil.ReadFile(path)
 	data := Expect{}
 	_ = json.Unmarshal([]byte(file), &data)
@@ -50,7 +62,7 @@ func getExpectedResultsForRepo(username string, name string) Expect {
 }
 
 func getReadmeForRepo(username string, name string) string {
-	path := filepath.Join(getTestdataDirectoryName(), "repos", username, name, "repo", name, "README.md")
+	path := filepath.Join(testdataDirectoryName, "repos", username, name, "repo", name, "README.md")
 
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -61,7 +73,7 @@ func getReadmeForRepo(username string, name string) string {
 }
 
 func mockGetReposForUser(username string) ([]*github.Repository, error) {
-	path := filepath.Join(getTestdataDirectoryName(), "repos", username, "repo-list.json")
+	path := filepath.Join(testdataDirectoryName, "repos", username, "repo-list.json")
 
 	blob, _ := ioutil.ReadFile(path)
 	var respositoryList []*github.Repository
@@ -72,16 +84,8 @@ func mockGetReposForUser(username string) ([]*github.Repository, error) {
 	return respositoryList, nil
 }
 
-// func TestAdhoc(t *testing.T) {
-// 	username := "pfeilbr"
-// 	result, _ := getReposForUser(username)
-// 	path := filepath.Join(getTestdataDirectoryName(), "repos", username, "repo-list.json")
-// 	bytes, _ := json.Marshal(result)
-// 	ioutil.WriteFile(path, bytes, 0644)
-// }
-
 func TestListReposForUser(t *testing.T) {
-	username := "pfeilbr"
+	username := githubUsername
 	result, _ := mockGetReposForUser(username)
 	if result == nil {
 		t.Errorf("no repos. got: %v", result)
@@ -90,12 +94,29 @@ func TestListReposForUser(t *testing.T) {
 	if len(result) == 0 {
 		t.Errorf("no repos. got: %v", result)
 	}
+}
 
-	t.Logf("repo count: %d", len(result))
+func TestApplyIncludeFilterForRepos(t *testing.T) {
+	username := githubUsername
+	repos, _ := mockGetReposForUser(username)
+	filteredRepos, err := applyIncludeFilterForRepos(repos)
+	if err != nil {
+		t.Error(err)
+	}
+
+	filteredReposCount := len(filteredRepos)
+	if filteredReposCount == 0 {
+		t.Errorf("expected >0 filtered repos.  got %d", filteredReposCount)
+	}
+
+	t.Logf("filteredReposCount: %d", filteredReposCount)
+	t.Logf("filteredRepos:\n%v", Map(filteredRepos, func(repo *github.Repository) string {
+		return *repo.Name
+	}))
 }
 
 func TestAllRepos(t *testing.T) {
-	username := "pfeilbr"
+	username := githubUsername
 	names := getTestRepoNames(username)
 
 	for _, name := range names {

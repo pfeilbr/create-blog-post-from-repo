@@ -5,6 +5,9 @@ create markdown ([hugo](https://gohugo.io/)) blog post from structured repositor
 ## Session
 
 ```sh
+# fetch test data
+make fetch-test-data
+
 # run tests recursively on change
 make watch-test
 
@@ -28,3 +31,9 @@ make watch-run
 * CreatePostTitleFromRepoName
 * repoName.split('-').join(' ').TitleCase.replace('playground', '')
 * <https://github.com/google/go-github>
+
+## Scratch
+
+```sh
+
+```
