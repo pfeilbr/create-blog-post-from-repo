@@ -124,7 +124,7 @@ func TestAllRepos(t *testing.T) {
 
 		t.Run("titleForRepo/"+name, func(t *testing.T) {
 			want := expect.Title
-			result := getTitleForRepo(name)
+			result := getPostTitle(name)
 
 			if result != want {
 				t.Errorf("got %s, want %s", result, want)
@@ -156,7 +156,7 @@ func TestCreateMarkdownPostFiles(t *testing.T) {
 }
 
 func TestGetFilteredReposForUser(t *testing.T) {
-	//t.SkipNow()
+	t.SkipNow()
 	user := githubUsername
 	repoNames := make([]string, 0)
 	t.Logf("starting ...")

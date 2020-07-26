@@ -44,6 +44,7 @@ type RepoPost struct {
 	Repo             *github.Repository
 	Title            string
 	Summary          string
+	Slug             string
 	Tags             []string
 	MarkdownBody     string
 	PostFileName     string
@@ -202,13 +203,44 @@ func getFilteredRepos(repos []*github.Repository) ([]*github.Repository, error) 
 	return filteredRepos, nil
 }
 
-func getTitleForRepo(repoName string) string {
+func getPostTitle(repoName string) string {
+
+	indexOf := func(s []string, e string) int {
+		for i, a := range s {
+			if a == e {
+				return i
+			}
+		}
+		return -1
+	}
+
+	wordsToCorrectCasing := getEnvAsArray("WORDS_TO_CORRECT_CASING_LIST")
+	wordsToCorrectCasingLowerCase := make([]string, 0)
+
+	for _, word := range wordsToCorrectCasing {
+		wordsToCorrectCasingLowerCase = append(wordsToCorrectCasingLowerCase, strings.ToLower(word))
+	}
+
 	title := strings.Replace(repoName, "playground", "", -1)
 	title = strings.Replace(title, "-", " ", -1)
 	title = strings.TrimSpace(title)
 	title = strings.ToLower(title)
 	title = strings.Title(title)
-	return title
+
+	lowerCaseWords := strings.Split(strings.ToLower(title), " ")
+
+	titleWords := make([]string, 0)
+
+	for _, lowerCaseWord := range lowerCaseWords {
+		index := indexOf(wordsToCorrectCasingLowerCase, lowerCaseWord)
+		if index != -1 {
+			titleWords = append(titleWords, wordsToCorrectCasing[index])
+		} else {
+			titleWords = append(titleWords, strings.Title(lowerCaseWord))
+		}
+	}
+
+	return strings.Join(titleWords, " ")
 }
 
 func getMD5Hash(text string) string {
@@ -316,6 +348,10 @@ func getPostTags(repo *github.Repository) []string {
 	return append(autoTags, staticTags...)
 }
 
+func getPostSlug(repo *github.Repository) string {
+	postTitle := getPostTitle(*repo.Name)
+	return strings.ToLower(strings.Replace(postTitle, " ", "-", -1))
+}
 func newRepoPost(repo *github.Repository) (*RepoPost, error) {
 	markdownBody, err := getPostBodyForRepo(repo)
 
@@ -327,11 +363,12 @@ func newRepoPost(repo *github.Repository) (*RepoPost, error) {
 		fmt.Printf("failed to getMarkdownBodyForRepo(%s)\n", *repo.Name)
 		return nil, err
 	}
-	title := getTitleForRepo(*repo.Name)
+	title := getPostTitle(*repo.Name)
 	repoPost := &RepoPost{
 		Repo:         repo,
 		Title:        title,
 		Summary:      randomSummaryPrefix() + " " + title,
+		Slug:         getPostSlug(repo),
 		Tags:         getPostTags(repo),
 		MarkdownBody: markdownBody,
 		PostFileName: getPostFileNameForRepo(repo),
