@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -13,7 +14,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
-type Expect struct {
+type ExpectedTestResults struct {
 	Title string `json: "title"`
 }
 
@@ -33,9 +34,9 @@ func Map(vs []*github.Repository, f func(*github.Repository) string) []string {
 	return vsm
 }
 
-func getTestRepoNames(username string) []string {
+func getTestRepoNames(user string) []string {
 	names := make([]string, 0)
-	files, err := ioutil.ReadDir(filepath.Join(testdataDirectoryName, "repos", username))
+	files, err := ioutil.ReadDir(filepath.Join(testdataDirectoryName, "repos", user))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,10 +53,10 @@ func getTestRepoNames(username string) []string {
 	return names
 }
 
-func getExpectedResultsForRepo(username string, name string) Expect {
+func getExpectedResultsForRepo(username string, name string) ExpectedTestResults {
 	path := filepath.Join(testdataDirectoryName, "repos", username, name, "expect.json")
 	file, _ := ioutil.ReadFile(path)
-	data := Expect{}
+	data := ExpectedTestResults{}
 	_ = json.Unmarshal([]byte(file), &data)
 	return data
 }
@@ -83,9 +84,9 @@ func getReadmeForRepo(username string, name string) string {
 // 	return respositoryList, nil
 // }
 
-func TestListReposForUser(t *testing.T) {
-	username := githubUsername
-	result, _ := getReposForUser(username, true)
+func TestGetReposForUser(t *testing.T) {
+	user := githubUsername
+	result, _ := getReposForUser(user, true)
 	if result == nil {
 		t.Errorf("no repos. got: %v", result)
 	}
@@ -95,10 +96,10 @@ func TestListReposForUser(t *testing.T) {
 	}
 }
 
-func TestApplyIncludeFilterForRepos(t *testing.T) {
-	username := githubUsername
-	repos, _ := getReposForUser(username, true)
-	filteredRepos, err := applyIncludeFilterForRepos(repos)
+func TestGetFilteredRepos(t *testing.T) {
+	user := githubUsername
+	repos, _ := getReposForUser(user, true)
+	filteredRepos, err := getFilteredRepos(repos)
 	if err != nil {
 		t.Error(err)
 	}
@@ -108,22 +109,22 @@ func TestApplyIncludeFilterForRepos(t *testing.T) {
 		t.Errorf("expected >0 filtered repos.  got %d", filteredReposCount)
 	}
 
-	t.Logf("filteredReposCount: %d", filteredReposCount)
+	//t.Logf("filteredReposCount: %d", filteredReposCount)
 	// t.Logf("filteredRepos:\n%v", Map(filteredRepos, func(repo *github.Repository) string {
 	// 	return *repo.Name
 	// }))
 }
 
 func TestAllRepos(t *testing.T) {
-	username := githubUsername
-	names := getTestRepoNames(username)
+	user := githubUsername
+	names := getTestRepoNames(user)
 
 	for _, name := range names {
-		expect := getExpectedResultsForRepo(username, name)
+		expect := getExpectedResultsForRepo(user, name)
 
 		t.Run("titleForRepo/"+name, func(t *testing.T) {
 			want := expect.Title
-			result := titleForRepo(name)
+			result := getTitleForRepo(name)
 
 			if result != want {
 				t.Errorf("got %s, want %s", result, want)
@@ -131,7 +132,7 @@ func TestAllRepos(t *testing.T) {
 		})
 
 		t.Run("getReadmeForRepo/"+name, func(t *testing.T) {
-			result := getReadmeForRepo(username, name)
+			result := getReadmeForRepo(user, name)
 			if len(result) == 0 {
 				t.Errorf("empty README contents. got %s", result)
 			}
@@ -141,11 +142,33 @@ func TestAllRepos(t *testing.T) {
 
 }
 
-func TestGenerateMarkdownPostFiles(t *testing.T) {
+func TestCreateMarkdownPostFiles(t *testing.T) {
+	destinationDirectory := "tmp/posts"
+	os.RemoveAll(destinationDirectory)
+	os.MkdirAll(destinationDirectory, 0777)
 	user := githubUsername
-	generateMarkdownPostFiles(user, "tmp/posts")
-
-	if err := generateMarkdownPostFiles(user, "tmp/posts"); err != nil {
+	if err := createMarkdownPostFiles(user, destinationDirectory); err != nil {
 		t.Error(err)
 	}
+
+	destinationCopyToDirectoryPath := "/Users/pfeilbr/Dropbox/mac01/Users/brianpfeil/projects/personal-website/content/post"
+	copyDirectoryRecursively(destinationDirectory, destinationCopyToDirectoryPath)
+}
+
+func TestGetFilteredReposForUser(t *testing.T) {
+	//t.SkipNow()
+	user := githubUsername
+	repoNames := make([]string, 0)
+	t.Logf("starting ...")
+	filteredRepos, err := getFilteredReposForUser(user)
+	if err != nil {
+		fmt.Printf("getFilteredReposForUser(%s) failed\n", user)
+		return
+	}
+
+	for _, repo := range filteredRepos {
+		repoNames = append(repoNames, *repo.Name)
+	}
+	repoNamesString := strings.Join(repoNames, "\n")
+	t.Logf(repoNamesString)
 }
