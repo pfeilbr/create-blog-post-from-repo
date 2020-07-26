@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -72,21 +71,21 @@ func getReadmeForRepo(username string, name string) string {
 	return string(content)
 }
 
-func mockGetReposForUser(username string) ([]*github.Repository, error) {
-	path := filepath.Join(testdataDirectoryName, "repos", username, "repo-list.json")
+// func mockGetReposForUser(username string) ([]*github.Repository, error) {
+// 	path := filepath.Join(testdataDirectoryName, "repos", username, "repo-list.json")
 
-	blob, _ := ioutil.ReadFile(path)
-	var respositoryList []*github.Repository
-	if err := json.Unmarshal([]byte(blob), &respositoryList); err != nil {
-		fmt.Printf("failed to unmarshall respository list")
-		return nil, err
-	}
-	return respositoryList, nil
-}
+// 	blob, _ := ioutil.ReadFile(path)
+// 	var respositoryList []*github.Repository
+// 	if err := json.Unmarshal([]byte(blob), &respositoryList); err != nil {
+// 		fmt.Printf("failed to unmarshall respository list")
+// 		return nil, err
+// 	}
+// 	return respositoryList, nil
+// }
 
 func TestListReposForUser(t *testing.T) {
 	username := githubUsername
-	result, _ := mockGetReposForUser(username)
+	result, _ := getReposForUser(username, true)
 	if result == nil {
 		t.Errorf("no repos. got: %v", result)
 	}
@@ -98,7 +97,7 @@ func TestListReposForUser(t *testing.T) {
 
 func TestApplyIncludeFilterForRepos(t *testing.T) {
 	username := githubUsername
-	repos, _ := mockGetReposForUser(username)
+	repos, _ := getReposForUser(username, true)
 	filteredRepos, err := applyIncludeFilterForRepos(repos)
 	if err != nil {
 		t.Error(err)
@@ -142,18 +141,11 @@ func TestAllRepos(t *testing.T) {
 
 }
 
-func TestCreatePostString(t *testing.T) {
-	username := githubUsername
-	repos, _ := mockGetReposForUser(username)
-	filteredRepos, err := applyIncludeFilterForRepos(repos)
-	if err != nil {
-		t.Error(err)
-	}
+func TestGenerateMarkdownPostFiles(t *testing.T) {
+	user := githubUsername
+	generateMarkdownPostFiles(user, "tmp/posts")
 
-	repo := filteredRepos[0]
-	postString, err := createPostString(repo)
-	if err != nil {
+	if err := generateMarkdownPostFiles(user, "tmp/posts"); err != nil {
 		t.Error(err)
 	}
-	t.Log(postString)
 }
