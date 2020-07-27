@@ -17,6 +17,16 @@ make watch-run
 
 ## TODO
 
+* add "see corresponding github repo for this post @ ..."
+* make repo post desciptions fixed for a given post.  don't want them changing between repo -> post is regenerated
+* make relative references in README.md absolute references to the resource in github
+* manual tag mappings for a repo.  can it be put in the yaml front matter of `README.md` and not display.  if not put in `.env`
+* in site search.  type ahead search
+  * use hugo to generate site-metadata.json which can be used by react search component
+* verify google indexes all pages
+
+## Completed
+
 * unit tests
   * create github api json response for all user repos
   * git clone test repo to local test fixtures

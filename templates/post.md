@@ -14,4 +14,8 @@ truncated = true
 
 +++
 
+<a href="{{ .Repo.HTMLURL }}" target="_blank"><i class="fab fa-github fa-sm"></i>&nbsp;{{ .Repo.FullName }}</a>
+
 {{ .MarkdownBody }}
+
+
