@@ -29,6 +29,7 @@ var command string
 var user string
 var path string
 var destinationDirectory string
+var useCache bool
 
 const tempDirectoryName = "tmp"
 
@@ -37,6 +38,7 @@ func init() {
 	flag.StringVar(&user, "user", "", "github username")
 	flag.StringVar(&path, "output", "", "file output path")
 	flag.StringVar(&destinationDirectory, "destination-directory", "", "directory to save geneated markdown post file(s) to")
+	flag.BoolVar(&useCache, "cache", true, "cache results from github")
 }
 
 // RepoPost contents of a post created from a repo
@@ -300,7 +302,7 @@ func getURLResponseBody(url string, cache bool) (string, error) {
 
 func getPostBodyForRepo(repo *github.Repository) (string, error) {
 	url := "https://raw.githubusercontent.com/" + *repo.FullName + "/master/README.md"
-	contents, err := getURLResponseBody(url, true)
+	contents, err := getURLResponseBody(url, useCache)
 	if err != nil {
 		fmt.Printf("getURLContents(%s) failed", url)
 		//return "", err
