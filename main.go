@@ -303,8 +303,15 @@ func getPostBodyForRepo(repo *github.Repository) (string, error) {
 	contents, err := getURLResponseBody(url, true)
 	if err != nil {
 		fmt.Printf("getURLContents(%s) failed", url)
-		return "", err
+		//return "", err
 	}
+
+	if err != nil {
+		fmt.Printf("failed to getPostBodyForRepo(%s)\n", *repo.Name)
+		fmt.Printf("no README.md at \"%s\" setting markdownBody to link to repo(%s)\n", url, *repo.Name)
+		contents = "See github repo at [" + *repo.FullName + "](" + *repo.HTMLURL + ")"
+	}
+
 	return contents, nil
 }
 
@@ -320,7 +327,12 @@ func randomSummaryPrefix() string {
 }
 
 func getEnvAsArray(key string) []string {
-	return strings.Split(os.Getenv(key), ",")
+	result := []string{}
+	value := os.Getenv(key)
+	if value != "" {
+		result = strings.Split(value, ",")
+	}
+	return result
 }
 
 func arrayIntersection(a, b []string) (c []string) {
@@ -338,14 +350,66 @@ func arrayIntersection(a, b []string) (c []string) {
 	return
 }
 
+func unique(stringSlice []string) []string {
+	keys := make(map[string]bool)
+	list := []string{}
+	for _, entry := range stringSlice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
+}
+
 func getPostTags(repo *github.Repository) []string {
 	autoTagsIfInRepoName := getEnvAsArray("AUTO_TAGS_IF_IN_REPO_NAME")
 	staticTags := getEnvAsArray("STATIC_TAGS")
+	repoNameTagMappingsString := os.Getenv("REPO_NAME_TAG_MAPPINGS")
+	tagMapJSON := os.Getenv("TAG_MAP_JSON")
+
+	tagMap := make(map[string]string)
+	err := json.Unmarshal([]byte(tagMapJSON), &tagMap)
+	if err != nil {
+		panic(err)
+	}
 
 	words := strings.Split(*repo.Name, "-")
 	autoTags := arrayIntersection(autoTagsIfInRepoName, words)
 
-	return append(autoTags, staticTags...)
+	repoNameTagMappings := strings.Split(repoNameTagMappingsString, "|")
+
+	repoMappingTags := []string{}
+	for _, repoNameTagMapping := range repoNameTagMappings {
+		repoNameToTagsList := strings.Split(repoNameTagMapping, "=")
+		if len(repoNameToTagsList) < 2 {
+			continue
+		}
+		repoName := repoNameToTagsList[0]
+		tagsListString := repoNameToTagsList[1]
+		tags := strings.Split(tagsListString, ",")
+
+		for _, tag := range tags {
+			if repoName == *repo.Name {
+				repoMappingTags = append(repoMappingTags, tag)
+			}
+		}
+
+	}
+
+	allPostTags := append(autoTags, append(repoMappingTags, staticTags...)...)
+
+	resultPostTags := make([]string, 0)
+	for _, postTag := range allPostTags {
+
+		if tagName, ok := tagMap[postTag]; ok {
+			resultPostTags = append(resultPostTags, tagName)
+		} else {
+			resultPostTags = append(resultPostTags, postTag)
+		}
+	}
+
+	return unique(resultPostTags)
 }
 
 func getPostSlug(repo *github.Repository) string {
@@ -355,14 +419,15 @@ func getPostSlug(repo *github.Repository) string {
 func newRepoPost(repo *github.Repository) (*RepoPost, error) {
 	markdownBody, err := getPostBodyForRepo(repo)
 
+	if err != nil {
+		fmt.Printf("failed to getPostBodyForRepo(%s)\n", *repo.Name)
+		return nil, err
+	}
+
 	lines := strings.Split(markdownBody, "\n")
 
 	markdownBody = strings.Join(lines[1:], "\n")
 
-	if err != nil {
-		fmt.Printf("failed to getMarkdownBodyForRepo(%s)\n", *repo.Name)
-		return nil, err
-	}
 	title := getPostTitle(*repo.Name)
 	repoPost := &RepoPost{
 		Repo:         repo,
@@ -426,14 +491,9 @@ func getAndSaveReposForUser(user string, path string) error {
 	return nil
 }
 
-func createMarkdownPostFile(repo *github.Repository, destinationDirectory string) error {
-	repoPost, err := newRepoPost(repo)
-	if err != nil {
-		fmt.Printf("newRepoPost(%s) failed\n", *repo.Name)
-		return err
-	}
+func createMarkdownPostFile(repoPost RepoPost, destinationDirectory string) error {
 
-	if err = os.MkdirAll(destinationDirectory, os.ModePerm); err != nil {
+	if err := os.MkdirAll(destinationDirectory, os.ModePerm); err != nil {
 		fmt.Printf("os.MkdirAll(%s) failed\n", destinationDirectory)
 		return err
 	}
@@ -463,18 +523,70 @@ func getFilteredReposForUser(user string) ([]*github.Repository, error) {
 	return filteredRepos, nil
 }
 
-func createMarkdownPostFiles(user string, destinationDirectory string) error {
+func getRepoPosts(username string) ([]RepoPost, error) {
+	repoPosts := make([]RepoPost, 0)
 
 	filteredRepos, err := getFilteredReposForUser(user)
 	if err != nil {
 		fmt.Printf("getFilteredReposForUser(%s) failed\n", user)
-		return err
+		return nil, err
 	}
 
 	for _, repo := range filteredRepos {
-		err := createMarkdownPostFile(repo, destinationDirectory)
+		repoPost, err := newRepoPost(repo)
 		if err != nil {
-			fmt.Printf("generateMarkdownPostFile(%s) failed\n", *repo.Name)
+			fmt.Printf("newRepoPost(%s) failed\n", *repo.Name)
+			return nil, err
+		}
+		repoPosts = append(repoPosts, *repoPost)
+	}
+
+	return repoPosts, nil
+}
+
+type RepoPostPredicate func(repoPost RepoPost) bool
+
+func getFilteredRepoPosts(username string, fn RepoPostPredicate) ([]RepoPost, error) {
+	filteredRepoPosts := make([]RepoPost, 0)
+
+	repoPosts, err := getRepoPosts(username)
+	if err != nil {
+		fmt.Printf("getRepoPosts(%s) failed\n", username)
+		return nil, err
+	}
+
+	for _, repoPost := range repoPosts {
+		if fn(repoPost) {
+			filteredRepoPosts = append(filteredRepoPosts, repoPost)
+		}
+	}
+
+	return filteredRepoPosts, nil
+}
+
+func getRepoPostsWithNoTags(username string) ([]RepoPost, error) {
+	filteredRepoPosts, err := getFilteredRepoPosts(username, func(repoPost RepoPost) bool {
+		return len(repoPost.Tags) == 0
+	})
+	if err != nil {
+		fmt.Printf("getFilteredRepoPosts(%s) failed\n", username)
+		return nil, err
+	}
+	return filteredRepoPosts, nil
+}
+
+func createMarkdownPostFiles(username string, destinationDirectory string) error {
+
+	repoPosts, err := getRepoPosts(username)
+	if err != nil {
+		fmt.Printf("getRepoPosts(%s) failed\n", username)
+		return nil
+	}
+
+	for _, repoPost := range repoPosts {
+		err := createMarkdownPostFile(repoPost, destinationDirectory)
+		if err != nil {
+			fmt.Printf("generateMarkdownPostFile(%s) failed\n", *repoPost.Repo.Name)
 			//return err
 		}
 	}

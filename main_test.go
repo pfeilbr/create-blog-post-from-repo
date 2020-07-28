@@ -157,12 +157,12 @@ func TestCreateMarkdownPostFiles(t *testing.T) {
 
 func TestGetFilteredReposForUser(t *testing.T) {
 	t.SkipNow()
-	user := githubUsername
+	username := githubUsername
 	repoNames := make([]string, 0)
 	t.Logf("starting ...")
-	filteredRepos, err := getFilteredReposForUser(user)
+	filteredRepos, err := getFilteredReposForUser(username)
 	if err != nil {
-		fmt.Printf("getFilteredReposForUser(%s) failed\n", user)
+		fmt.Printf("getFilteredReposForUser(%s) failed\n", username)
 		return
 	}
 
@@ -171,4 +171,20 @@ func TestGetFilteredReposForUser(t *testing.T) {
 	}
 	repoNamesString := strings.Join(repoNames, "\n")
 	t.Logf(repoNamesString)
+}
+
+func TestGetRepoPostsWithNoTags(t *testing.T) {
+	//t.SkipNow()
+	username := githubUsername
+	repoPosts, err := getRepoPostsWithNoTags(username)
+	if err != nil {
+		t.Error(err)
+	}
+
+	repoNames := make([]string, 0)
+	for _, repoPost := range repoPosts {
+		repoNames = append(repoNames, *repoPost.Repo.Name)
+	}
+	repoNamesString := strings.Join(repoNames, "=|")
+	t.Log(repoNamesString)
 }
