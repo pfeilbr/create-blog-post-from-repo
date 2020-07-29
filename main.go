@@ -30,6 +30,7 @@ var user string
 var path string
 var destinationDirectory string
 var useCache bool
+var debug bool
 
 const tempDirectoryName = "tmp"
 
@@ -38,7 +39,8 @@ func init() {
 	flag.StringVar(&user, "user", "", "github username")
 	flag.StringVar(&path, "output", "", "file output path")
 	flag.StringVar(&destinationDirectory, "destination-directory", "", "directory to save geneated markdown post file(s) to")
-	flag.BoolVar(&useCache, "cache", true, "cache results from github")
+	flag.BoolVar(&useCache, "cache", true, "cache requests to repo")
+	flag.BoolVar(&debug, "debug", false, "print debug information")
 }
 
 // RepoPost contents of a post created from a repo
@@ -58,6 +60,7 @@ func fileExists(filename string) bool {
 	if os.IsNotExist(err) {
 		return false
 	}
+
 	return !info.IsDir()
 }
 
@@ -578,7 +581,9 @@ func getRepoPostsWithNoTags(username string) ([]RepoPost, error) {
 }
 
 func createMarkdownPostFiles(username string, destinationDirectory string) error {
-
+	if debug {
+		fmt.Printf("getRepoPosts(%s)\n", username)
+	}
 	repoPosts, err := getRepoPosts(username)
 	if err != nil {
 		fmt.Printf("getRepoPosts(%s) failed\n", username)
@@ -586,6 +591,9 @@ func createMarkdownPostFiles(username string, destinationDirectory string) error
 	}
 
 	for _, repoPost := range repoPosts {
+		if debug {
+			fmt.Printf("createMarkdownPostFile(%s, \"%s\")\n", *repoPost.Repo.Name, destinationDirectory)
+		}
 		err := createMarkdownPostFile(repoPost, destinationDirectory)
 		if err != nil {
 			fmt.Printf("generateMarkdownPostFile(%s) failed\n", *repoPost.Repo.Name)
