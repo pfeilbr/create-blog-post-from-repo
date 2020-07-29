@@ -35,6 +35,8 @@ var debug bool
 const tempDirectoryName = "tmp"
 
 func init() {
+	log.SetOutput(os.Stdout)
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	flag.StringVar(&command, "command", "", "command to run")
 	flag.StringVar(&user, "user", "", "github username")
 	flag.StringVar(&path, "output", "", "file output path")
@@ -141,7 +143,7 @@ func getReposForUser(user string, cache bool) ([]*github.Repository, error) {
 			blob, _ := ioutil.ReadFile(cachedReposPath)
 			var respositoryList []*github.Repository
 			if err := json.Unmarshal([]byte(blob), &respositoryList); err != nil {
-				fmt.Printf("failed to unmarshall respository list")
+				log.Printf("failed to unmarshall respository list")
 				return nil, err
 			}
 			return respositoryList, nil
@@ -159,7 +161,7 @@ func getReposForUser(user string, cache bool) ([]*github.Repository, error) {
 	for {
 		repos, resp, err := client.Repositories.List(ctx, user, opt)
 		if err != nil {
-			fmt.Printf("failed to list repositories for user %s", user)
+			log.Printf("failed to list repositories for user %s", user)
 			return nil, err
 		}
 		userRepos = append(userRepos, repos...)
@@ -173,12 +175,12 @@ func getReposForUser(user string, cache bool) ([]*github.Repository, error) {
 		os.MkdirAll(tempDirectoryName, os.ModePerm)
 		bytes, err := json.Marshal(userRepos)
 		if err != nil {
-			fmt.Printf("json.Marshal failed")
+			log.Printf("json.Marshal failed")
 			return nil, err
 		}
 		err = ioutil.WriteFile(cachedReposPath, bytes, 0644)
 		if err != nil {
-			fmt.Printf("ioutil.WriteFile(%s) failed", cachedReposPath)
+			log.Printf("ioutil.WriteFile(%s) failed", cachedReposPath)
 			return nil, err
 		}
 
@@ -268,7 +270,7 @@ func getURLResponseBody(url string, cache bool) (string, error) {
 		if fileExists(urlResponseCacheFilePath) {
 			b, err := ioutil.ReadFile(urlResponseCacheFilePath)
 			if err != nil {
-				fmt.Printf("ioutil.ReadFile(%s) failed\n", urlResponseCacheFilePath)
+				log.Printf("ioutil.ReadFile(%s) failed\n", urlResponseCacheFilePath)
 				return "", err
 			}
 			return string(b), nil
@@ -295,7 +297,7 @@ func getURLResponseBody(url string, cache bool) (string, error) {
 		err := ioutil.WriteFile(urlResponseCacheFilePath, data, os.ModePerm)
 
 		if err != nil {
-			fmt.Printf("ioutil.WriteFile(%s) failed\n", urlResponseCacheFilePath)
+			log.Printf("ioutil.WriteFile(%s) failed\n", urlResponseCacheFilePath)
 			return "", err
 		}
 	}
@@ -307,13 +309,13 @@ func getPostBodyForRepo(repo *github.Repository) (string, error) {
 	url := "https://raw.githubusercontent.com/" + *repo.FullName + "/master/README.md"
 	contents, err := getURLResponseBody(url, useCache)
 	if err != nil {
-		fmt.Printf("getURLContents(%s) failed", url)
+		log.Printf("getURLContents(%s) failed", url)
 		//return "", err
 	}
 
 	if err != nil {
-		fmt.Printf("failed to getPostBodyForRepo(%s)\n", *repo.Name)
-		fmt.Printf("no README.md at \"%s\" setting markdownBody to link to repo(%s)\n", url, *repo.Name)
+		log.Printf("failed to getPostBodyForRepo(%s)\n", *repo.Name)
+		log.Printf("no README.md at \"%s\" setting markdownBody to link to repo(%s)\n", url, *repo.Name)
 		contents = "See github repo at [" + *repo.FullName + "](" + *repo.HTMLURL + ")"
 	}
 
@@ -425,7 +427,7 @@ func newRepoPost(repo *github.Repository) (*RepoPost, error) {
 	markdownBody, err := getPostBodyForRepo(repo)
 
 	if err != nil {
-		fmt.Printf("failed to getPostBodyForRepo(%s)\n", *repo.Name)
+		log.Printf("failed to getPostBodyForRepo(%s)\n", *repo.Name)
 		return nil, err
 	}
 
@@ -445,7 +447,7 @@ func newRepoPost(repo *github.Repository) (*RepoPost, error) {
 	}
 	postFileContents, err := getPostFileContents(repoPost)
 	if err != nil {
-		fmt.Printf("getPostFileContents(%s) failed\n", *repo.Name)
+		log.Printf("getPostFileContents(%s) failed\n", *repo.Name)
 		return nil, err
 	}
 
@@ -479,17 +481,17 @@ func getCachedReposPathForUser(user string) string {
 func getAndSaveReposForUser(user string, path string) error {
 	result, err := getReposForUser(user, false)
 	if err != nil {
-		fmt.Printf("getReposForUser(%s) failed\n", user)
+		log.Printf("getReposForUser(%s) failed\n", user)
 		return err
 	}
 	bytes, err := json.Marshal(result)
 	if err != nil {
-		fmt.Printf("getAndSaveReposForUser | json.Marshal() failed\n")
+		log.Printf("getAndSaveReposForUser | json.Marshal() failed\n")
 		return err
 	}
 	err = ioutil.WriteFile(path, bytes, 0644)
 	if err != nil {
-		fmt.Printf("getAndSaveReposForUser | ioutil.WriteFile(%s) failed\n", path)
+		log.Printf("getAndSaveReposForUser | ioutil.WriteFile(%s) failed\n", path)
 		return err
 	}
 
@@ -499,13 +501,13 @@ func getAndSaveReposForUser(user string, path string) error {
 func createMarkdownPostFile(repoPost RepoPost, destinationDirectory string) error {
 
 	if err := os.MkdirAll(destinationDirectory, os.ModePerm); err != nil {
-		fmt.Printf("os.MkdirAll(%s) failed\n", destinationDirectory)
+		log.Printf("os.MkdirAll(%s) failed\n", destinationDirectory)
 		return err
 	}
 
 	path := filepath.Join(destinationDirectory, repoPost.PostFileName)
 	if err := ioutil.WriteFile(path, []byte(repoPost.PostFileContents), 0644); err != nil {
-		fmt.Printf("ioutil.WriteFile(%s) failed\n", path)
+		log.Printf("ioutil.WriteFile(%s) failed\n", path)
 		return err
 	}
 
@@ -515,13 +517,13 @@ func createMarkdownPostFile(repoPost RepoPost, destinationDirectory string) erro
 func getFilteredReposForUser(user string) ([]*github.Repository, error) {
 	repos, err := getReposForUser(user, true)
 	if err != nil {
-		fmt.Printf("getReposForUser(%s) failed\n", user)
+		log.Printf("getReposForUser(%s) failed\n", user)
 		return nil, err
 	}
 
 	filteredRepos, err := getFilteredRepos(repos)
 	if err != nil {
-		fmt.Printf("applyIncludeFilterForRepos(repos) failed\n")
+		log.Printf("applyIncludeFilterForRepos(repos) failed\n")
 		return nil, err
 	}
 
@@ -533,14 +535,14 @@ func getRepoPosts(username string) ([]RepoPost, error) {
 
 	filteredRepos, err := getFilteredReposForUser(user)
 	if err != nil {
-		fmt.Printf("getFilteredReposForUser(%s) failed\n", user)
+		log.Printf("getFilteredReposForUser(%s) failed\n", user)
 		return nil, err
 	}
 
 	for _, repo := range filteredRepos {
 		repoPost, err := newRepoPost(repo)
 		if err != nil {
-			fmt.Printf("newRepoPost(%s) failed\n", *repo.Name)
+			log.Printf("newRepoPost(%s) failed\n", *repo.Name)
 			return nil, err
 		}
 		repoPosts = append(repoPosts, *repoPost)
@@ -556,7 +558,7 @@ func getFilteredRepoPosts(username string, fn RepoPostPredicate) ([]RepoPost, er
 
 	repoPosts, err := getRepoPosts(username)
 	if err != nil {
-		fmt.Printf("getRepoPosts(%s) failed\n", username)
+		log.Printf("getRepoPosts(%s) failed\n", username)
 		return nil, err
 	}
 
@@ -574,7 +576,7 @@ func getRepoPostsWithNoTags(username string) ([]RepoPost, error) {
 		return len(repoPost.Tags) == 0
 	})
 	if err != nil {
-		fmt.Printf("getFilteredRepoPosts(%s) failed\n", username)
+		log.Printf("getFilteredRepoPosts(%s) failed\n", username)
 		return nil, err
 	}
 	return filteredRepoPosts, nil
@@ -582,21 +584,21 @@ func getRepoPostsWithNoTags(username string) ([]RepoPost, error) {
 
 func createMarkdownPostFiles(username string, destinationDirectory string) error {
 	if debug {
-		fmt.Printf("getRepoPosts(%s)\n", username)
+		log.Printf("getRepoPosts(%s)\n", username)
 	}
 	repoPosts, err := getRepoPosts(username)
 	if err != nil {
-		fmt.Printf("getRepoPosts(%s) failed\n", username)
+		log.Printf("getRepoPosts(%s) failed\n", username)
 		return nil
 	}
 
 	for _, repoPost := range repoPosts {
 		if debug {
-			fmt.Printf("createMarkdownPostFile(%s, \"%s\")\n", *repoPost.Repo.Name, destinationDirectory)
+			log.Printf("createMarkdownPostFile(%s, \"%s\")\n", *repoPost.Repo.Name, destinationDirectory)
 		}
 		err := createMarkdownPostFile(repoPost, destinationDirectory)
 		if err != nil {
-			fmt.Printf("generateMarkdownPostFile(%s) failed\n", *repoPost.Repo.Name)
+			log.Printf("generateMarkdownPostFile(%s) failed\n", *repoPost.Repo.Name)
 			//return err
 		}
 	}
@@ -608,14 +610,14 @@ func main() {
 	flag.Parse()
 
 	if command == "fetch-and-save-repos-for-user" {
-		fmt.Printf("command: %s, user: %s, path: %s\n", command, user, path)
+		log.Printf("command: %s, user: %s, path: %s\n", command, user, path)
 		if err := getAndSaveReposForUser(user, path); err != nil {
 			log.Fatal(err)
 		}
 	}
 
 	if command == "generate-markdown-post-files" {
-		fmt.Printf("command: %s, user: %s, destinationDirectory: %s\n", command, user, destinationDirectory)
+		log.Printf("command: %s, user: %s, destinationDirectory: %s\n", command, user, destinationDirectory)
 		if err := createMarkdownPostFiles(user, destinationDirectory); err != nil {
 			log.Fatal(err)
 		}

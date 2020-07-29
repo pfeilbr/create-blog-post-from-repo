@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -36,8 +35,10 @@ func Map(vs []*github.Repository, f func(*github.Repository) string) []string {
 
 func getTestRepoNames(user string) []string {
 	names := make([]string, 0)
-	files, err := ioutil.ReadDir(filepath.Join(testdataDirectoryName, "repos", user))
+	path := filepath.Join(testdataDirectoryName, "repos", user)
+	files, err := ioutil.ReadDir(path)
 	if err != nil {
+		log.Printf("ioutil.ReadDir(\"%s\") failed\n", path)
 		log.Fatal(err)
 	}
 
@@ -78,7 +79,7 @@ func getReadmeForRepo(username string, name string) string {
 // 	blob, _ := ioutil.ReadFile(path)
 // 	var respositoryList []*github.Repository
 // 	if err := json.Unmarshal([]byte(blob), &respositoryList); err != nil {
-// 		fmt.Printf("failed to unmarshall respository list")
+// 		log.Printf("failed to unmarshall respository list")
 // 		return nil, err
 // 	}
 // 	return respositoryList, nil
@@ -143,11 +144,13 @@ func TestAllRepos(t *testing.T) {
 }
 
 func TestCreateMarkdownPostFiles(t *testing.T) {
+	useCache = true
 	destinationDirectory := "tmp/posts"
 	os.RemoveAll(destinationDirectory)
 	os.MkdirAll(destinationDirectory, 0777)
 	user := githubUsername
 	if err := createMarkdownPostFiles(user, destinationDirectory); err != nil {
+		log.Printf("createMarkdownPostFiles(%s, %s). failed\n", user, destinationDirectory)
 		t.Error(err)
 	}
 
@@ -162,7 +165,7 @@ func TestGetFilteredReposForUser(t *testing.T) {
 	t.Logf("starting ...")
 	filteredRepos, err := getFilteredReposForUser(username)
 	if err != nil {
-		fmt.Printf("getFilteredReposForUser(%s) failed\n", username)
+		log.Printf("getFilteredReposForUser(%s) failed\n", username)
 		return
 	}
 
