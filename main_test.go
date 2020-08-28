@@ -3,11 +3,12 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/google/go-github/github"
 	_ "github.com/joho/godotenv/autoload"
@@ -140,10 +141,10 @@ func TestAllRepos(t *testing.T) {
 		})
 
 	}
-
 }
 
 func TestCreateMarkdownPostFiles(t *testing.T) {
+
 	useCache = true
 	destinationDirectory := "tmp/posts"
 	os.RemoveAll(destinationDirectory)
@@ -190,4 +191,8 @@ func TestGetRepoPostsWithNoTags(t *testing.T) {
 	}
 	repoNamesString := strings.Join(repoNames, "=|")
 	t.Log(repoNamesString)
+}
+
+func TestLogging(t *testing.T) {
+	log.Printf("hello %s", "world")
 }

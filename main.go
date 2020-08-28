@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"net/http"
 	"os"
@@ -19,6 +18,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/google/go-github/github"
 	_ "github.com/joho/godotenv/autoload"
@@ -35,8 +36,8 @@ var debug bool
 const tempDirectoryName = "tmp"
 
 func init() {
-	log.SetOutput(os.Stdout)
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	//log.SetFormatter(&log.JSONFormatter{})
+	log.SetLevel(log.DebugLevel)
 	flag.StringVar(&command, "command", "", "command to run")
 	flag.StringVar(&user, "user", "", "github username")
 	flag.StringVar(&path, "output", "", "file output path")

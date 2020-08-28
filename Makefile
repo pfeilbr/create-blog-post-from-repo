@@ -1,5 +1,5 @@
-.PHONY: watch-test watch-run fetch-test-data build
-watch-test:
+.PHONY: test watch-run fetch-test-data build
+test:
 	fswatch -o *.go templates/*.* .env | xargs -n1 -I{} go test -v ./...
 
 watch-run:
