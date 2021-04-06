@@ -204,6 +204,16 @@ func getFilteredRepos(repos []*github.Repository) ([]*github.Repository, error) 
 			}
 		}
 
+		excludeFiltersString := os.Getenv("REPO_NAME_EXCLUDE_FILTERS")
+		excludeFilters := strings.Split(excludeFiltersString, ",")
+
+		for _, excludeFilter := range excludeFilters {
+			re := regexp.MustCompile(excludeFilter)
+			if re.Match([]byte(*repo.Name)) == true {
+				match = false
+			}
+		}
+
 		if match == true {
 			filteredRepos = append(filteredRepos, repo)
 		}
