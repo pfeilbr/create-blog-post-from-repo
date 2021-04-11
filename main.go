@@ -232,6 +232,16 @@ func getPostTitle(repoName string) string {
 		return -1
 	}
 
+	// check post title override map
+	repoNameToPostTitleMappingsString := os.Getenv("REPO_NAME_TO_POST_TITLE_MAPPINGS")
+	repoNameToPostTitleMap := jsonStringToMapOfStringToString(repoNameToPostTitleMappingsString)
+
+	for name, title := range repoNameToPostTitleMap {
+		if repoName == name {
+			return title
+		}
+	}
+
 	wordsToCorrectCasing := getEnvAsArray("WORDS_TO_CORRECT_CASING_LIST")
 	wordsToCorrectCasingLowerCase := make([]string, 0)
 
@@ -380,10 +390,22 @@ func unique(stringSlice []string) []string {
 	return list
 }
 
+func jsonStringToMapOfStringToString(jsonString string) map[string]string {
+	m := make(map[string]string)
+
+	err := json.Unmarshal([]byte(jsonString), &m)
+	if err != nil {
+		fmt.Printf("Error: %s\n", err)
+		return m
+	}
+	return m
+}
+
 func getPostTags(repo *github.Repository) []string {
 	autoTagsIfInRepoName := getEnvAsArray("AUTO_TAGS_IF_IN_REPO_NAME")
 	staticTags := getEnvAsArray("STATIC_TAGS")
 	repoNameTagMappingsString := os.Getenv("REPO_NAME_TAG_MAPPINGS")
+
 	tagMapJSON := os.Getenv("TAG_MAP_JSON")
 
 	tagMap := make(map[string]string)
